@@ -2,8 +2,12 @@ node_modules/
 dist/
 lib/
 .vscode/
+.idea/
+.DS_Store
 coverage/
 types/
 test/runtime.js
 packages/babel-plugin-jsx-dom-expressions/index.js
+packages/babel-plugin-jsx-dom-expressions/debug/in.js
 !packages/babel-plugin-jsx-dom-expressions/types/
+
