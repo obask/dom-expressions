@@ -1,6 +1,35 @@
+// @ts-ignore
 import { root, effect, memo, createComponent, untrack, mergeProps } from "rxcore";
 
-export function createRenderer({
+
+export interface RendererOptions<NodeType> {
+  createElement(tag: string): NodeType;
+  createTextNode(value: string): NodeType;
+  replaceText(textNode: NodeType, value: string): void;
+  isTextNode(node: NodeType): boolean;
+  setProperty<T>(node: NodeType, name: string, value: T, prev?: T): void;
+  insertNode(parent: NodeType, node: NodeType, anchor?: NodeType): void;
+  removeNode(parent: NodeType, node: NodeType): void;
+  getParentNode(node: NodeType): NodeType | undefined;
+  getFirstChild(node: NodeType): NodeType | undefined;
+  getNextSibling(node: NodeType): NodeType | undefined;
+}
+
+export interface Renderer<NodeType> {
+  render(code: () => NodeType, node: NodeType): () => void;
+  effect<T>(fn: (prev?: T) => T, init?: T): void;
+  memo<T>(fn: () => T, equal: boolean): () => T;
+  createComponent<T>(Comp: (props: T) => NodeType, props: T): NodeType;
+  createElement(tag: string): NodeType;
+  createTextNode(value: string): NodeType;
+  insertNode(parent: NodeType, node: NodeType, anchor?: NodeType): void;
+  insert<T>(parent: any, accessor: (() => T) | T, marker?: any | null): NodeType;
+  spread<T>(node: any, accessor: (() => T) | T, skipChildren?: Boolean): void;
+  setProp<T>(node: NodeType, name: string, value: T, prev?: T): T;
+  mergeProps(...sources: unknown[]): unknown;
+}
+
+export function createRenderer<NodeType>({
   createElement,
   createTextNode,
   isTextNode,
@@ -11,14 +40,15 @@ export function createRenderer({
   getParentNode,
   getFirstChild,
   getNextSibling
-}) {
-  function insert(parent, accessor, marker, initial) {
+}: RendererOptions<NodeType>): Renderer<NodeType> {
+  function insert<T>(parent: any, accessor: (() => T) | T, marker?: any | null, initial?: any): NodeType {
     if (marker !== undefined && !initial) initial = [];
     if (typeof accessor !== "function") return insertExpression(parent, accessor, initial, marker);
+    // @ts-ignore
     effect(current => insertExpression(parent, accessor(), current, marker), initial);
   }
 
-  function insertExpression(parent, value, current, marker, unwrapArray) {
+  function insertExpression(parent, value, current, marker?, unwrapArray?) {
     while (typeof current === "function") current = current();
     if (value === current) return current;
     const t = typeof value,
@@ -83,7 +113,7 @@ export function createRenderer({
     return current;
   }
 
-  function normalizeIncomingArray(normalized, array, unwrap) {
+  function normalizeIncomingArray(normalized, array, unwrap?) {
     let dynamic = false;
     for (let i = 0, len = array.length; i < len; i++) {
       let item = array[i],
@@ -180,7 +210,7 @@ export function createRenderer({
     }
   }
 
-  function cleanChildren(parent, current, marker, replacement) {
+  function cleanChildren(parent, current, marker, replacement?) {
     if (marker === undefined) {
       let removed;
       while ((removed = getFirstChild(parent))) removeNode(parent, removed);
@@ -203,7 +233,7 @@ export function createRenderer({
     return [node];
   }
 
-  function appendNodes(parent, array, marker) {
+  function appendNodes(parent, array, marker?) {
     for (let i = 0, len = array.length; i < len; i++) insertNode(parent, array[i], marker);
   }
 
@@ -212,7 +242,7 @@ export function createRenderer({
     removeNode(parent, oldNode);
   }
 
-  function spreadExpression(node, props, prevProps = {}, skipChildren) {
+  function spreadExpression(node, props, prevProps: {children?} = {}, skipChildren) {
     props || (props = {});
     if (!skipChildren) {
       effect(() => (prevProps.children = insertExpression(node, props.children, prevProps.children)));
@@ -242,6 +272,7 @@ export function createRenderer({
     insert,
     spread(node, accessor, skipChildren) {
       if (typeof accessor === "function") {
+        // @ts-ignore
         effect(current => spreadExpression(node, accessor(), current, skipChildren));
       } else spreadExpression(node, accessor, undefined, skipChildren);
     },
@@ -256,6 +287,7 @@ export function createRenderer({
     effect,
     memo,
     createComponent,
+    // @ts-ignore
     use(fn, element, arg) {
       return untrack(() => fn(element, arg));
     }
