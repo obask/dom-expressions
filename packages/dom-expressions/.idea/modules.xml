@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../babel-plugin-jsx-dom-expressions/.idea/babel-plugin-jsx-dom-expressions.iml" filepath="$PROJECT_DIR$/../babel-plugin-jsx-dom-expressions/.idea/babel-plugin-jsx-dom-expressions.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/dom-expressions.iml" filepath="$PROJECT_DIR$/.idea/dom-expressions.iml" />
+    </modules>
+  </component>
+</project>

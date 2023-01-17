@@ -1,5 +1,5 @@
 {
-  "name": "dom-expressions",
+  "name": "tsx-expressions",
   "description": "A Fine-Grained Runtime for Performant DOM Rendering",
   "version": "0.35.13",
   "author": "Ryan Carniato",
@@ -23,7 +23,7 @@
     "csstype": "^3.0"
   },
   "devDependencies": {
-    "babel-plugin-jsx-dom-expressions": "^0.35.13",
+    "babel-plugin-tsx-expressions": "^0.35.13",
     "csstype": "^3.1"
   }
 }

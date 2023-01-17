@@ -5,7 +5,7 @@ import {
   Aliases,
   ChildProperties,
   SVGElements
-} from "dom-expressions/src/constants";
+} from "tsx-expressions/src/constants";
 import VoidElements from "../VoidElements";
 import {
   getTagName,

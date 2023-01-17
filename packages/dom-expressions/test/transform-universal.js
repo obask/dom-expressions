@@ -10,6 +10,6 @@ module.exports = babelJest.createTransformer({
         replacement: __dirname + "/core"
       }
     ],
-    ["babel-plugin-jsx-dom-expressions", { moduleName: "./custom", generate: "universal" }]
+    ["babel-plugin-tsx-expressions", { moduleName: "./custom", generate: "universal" }]
   ]
 });

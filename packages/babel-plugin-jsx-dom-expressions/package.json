@@ -1,5 +1,5 @@
 {
-  "name": "babel-plugin-jsx-dom-expressions",
+  "name": "babel-plugin-tsx-expressions",
   "description": "A JSX to DOM plugin that wraps expressions for fine grained change detection",
   "version": "0.35.13",
   "author": "Ryan Carniato",
