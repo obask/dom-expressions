@@ -81,3 +81,17 @@ While not as performant as the other options this library provides a mechanism t
 ## Work in Progress
 
 This is still a work in progress. My goal here is to better understand and generalize this approach to provide non Virtual DOM alternatives to developing web applications.
+
+```py
+
+index = dict((l.split('(')[0].replace('<T>', ''), l.replace(';', ' {')) for l in open("client.d.ts") if l.startswith('export function'))
+
+for l in open("client.ts"):
+    print(index.get(l.split('(')[0], l))
+for l in open("client.ts"):
+    if l.startswith('export function'):
+        print(index.get(l.split('(')[0], l), end="")
+    else:
+        print(l, end="")
+
+```

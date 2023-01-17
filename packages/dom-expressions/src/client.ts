@@ -15,8 +15,10 @@ import {
   sharedConfig,
   untrack,
   mergeProps
+// @ts-ignore
 } from "rxcore";
 import reconcileArrays from "./reconcile";
+import {JSX} from "./jsx-runtime";
 export {
   Properties,
   ChildProperties,
@@ -44,7 +46,12 @@ export {
   voidFn as HydrationScript
 };
 
-export function render(code, element, init, options = {}) {
+type MountableElement = Element | Document | ShadowRoot | DocumentFragment | Node;
+
+export function render(code: () => JSX.Element,
+                       element: MountableElement,
+                       init: any,
+                       options: { renderId?: string; owner?: unknown } = {}): () => void {
   let disposer;
   root(dispose => {
     disposer = dispose;
@@ -58,7 +65,7 @@ export function render(code, element, init, options = {}) {
   };
 }
 
-export function template(html, check, isSVG) {
+export function template(html: string, check: number, isSVG?: boolean): Element | ChildNode {
   const t = document.createElement("template");
   t.innerHTML = html;
   if ("_DX_DEV_" && check && t.innerHTML.split("<").length - 1 !== check)
@@ -68,7 +75,7 @@ export function template(html, check, isSVG) {
   return node;
 }
 
-export function delegateEvents(eventNames, document = window.document) {
+export function delegateEvents(eventNames: string[], d?: Document): void {
   const e = document[$$EVENTS] || (document[$$EVENTS] = new Set());
   for (let i = 0, l = eventNames.length; i < l; i++) {
     const name = eventNames[i];
@@ -79,29 +86,34 @@ export function delegateEvents(eventNames, document = window.document) {
   }
 }
 
-export function clearDelegatedEvents(document = window.document) {
+export function clearDelegatedEvents(d?: Document): void {
   if (document[$$EVENTS]) {
     for (let name of document[$$EVENTS].keys()) document.removeEventListener(name, eventHandler);
     delete document[$$EVENTS];
   }
 }
 
-export function setAttribute(node, name, value) {
+export function setAttribute(node: Element, name: string, value?: string): void {
   if (value == null) node.removeAttribute(name);
   else node.setAttribute(name, value);
 }
 
-export function setAttributeNS(node, namespace, name, value) {
+export function setAttributeNS(node: Element, namespace: string, name: string, value: string): void {
   if (value == null) node.removeAttributeNS(namespace, name);
   else node.setAttributeNS(namespace, name, value);
 }
 
-export function className(node, value) {
+export function className(node: Element, value: string): void {
   if (value == null) node.removeAttribute("class");
   else node.className = value;
 }
 
-export function addEventListener(node, name, handler, delegate) {
+export function addEventListener(
+  node: Element,
+  name: string,
+  handler: () => void,
+  delegate: boolean
+): void {
   if (delegate) {
     if (Array.isArray(handler)) {
       node[`$$${name}`] = handler[0];
@@ -113,7 +125,11 @@ export function addEventListener(node, name, handler, delegate) {
   } else node.addEventListener(name, handler);
 }
 
-export function classList(node, value, prev = {}) {
+export function classList(
+  node: Element,
+  value: { [k: string]: boolean },
+  prev: { [k: string]: boolean } = {}
+): any {
   const classKeys = Object.keys(value || {}),
     prevKeys = Object.keys(prev);
   let i, len;
@@ -133,7 +149,13 @@ export function classList(node, value, prev = {}) {
   return prev;
 }
 
-export function style(node, value, prev) {
+export function style<T>(
+  node: any,
+  value: (() => T) | T | {},
+  prev: (() => T) | T | {},
+  isSVG?: Boolean,
+  skipChildren?: Boolean
+): any {
   if (!value) return prev ? setAttribute(node, "style") : value;
   const nodeStyle = node.style;
   if (typeof value === "string") return (nodeStyle.cssText = value);
@@ -141,10 +163,12 @@ export function style(node, value, prev) {
   prev || (prev = {});
   value || (value = {});
   let v, s;
+  // @ts-ignore
   for (s in prev) {
     value[s] == null && nodeStyle.removeProperty(s);
     delete prev[s];
   }
+  // @ts-ignore
   for (s in value) {
     v = value[s];
     if (v !== prev[s]) {
@@ -155,8 +179,13 @@ export function style(node, value, prev) {
   return prev;
 }
 
-export function spread(node, props = {}, isSVG, skipChildren) {
-  const prevProps = {};
+export function spread<T>(
+  node: Element,
+  props: (() => T) | T | any = {},
+  isSVG?: Boolean,
+  skipChildren?: Boolean
+): void {
+  const prevProps: any = {};
   if (!skipChildren) {
     effect(() => (prevProps.children = insertExpression(node, props.children, prevProps.children)));
   }
@@ -165,7 +194,7 @@ export function spread(node, props = {}, isSVG, skipChildren) {
   return prevProps;
 }
 
-export function dynamicProperty(props, key) {
+export function dynamicProperty(props: unknown, key: string): unknown {
   const src = props[key];
   Object.defineProperty(props, key, {
     get() {
@@ -176,7 +205,7 @@ export function dynamicProperty(props, key) {
   return props;
 }
 
-export function innerHTML(parent, content) {
+export function innerHTML(parent: Element, content: string): void {
   !sharedConfig.context && (parent.innerHTML = content);
 }
 
@@ -184,13 +213,20 @@ export function use(fn, element, arg) {
   return untrack(() => fn(element, arg));
 }
 
-export function insert(parent, accessor, marker, initial) {
+export function insert<T>(
+  parent: MountableElement,
+  accessor: (() => T) | T,
+  marker?: Node | null,
+  initial?: JSX.Element
+): JSX.Element {
   if (marker !== undefined && !initial) initial = [];
   if (typeof accessor !== "function") return insertExpression(parent, accessor, initial, marker);
+  // @ts-ignore
   effect(current => insertExpression(parent, accessor(), current, marker), initial);
 }
 
-export function assign(node, props, isSVG, skipChildren, prevProps = {}, skipRef = false) {
+export function assign(node: Element, props: any, isSVG?: Boolean, skipChildren?: Boolean,
+                       prevProps = {}, skipRef = false): void {
   props || (props = {});
   for (const prop in prevProps) {
     if (!(prop in props)) {
@@ -209,7 +245,11 @@ export function assign(node, props, isSVG, skipChildren, prevProps = {}, skipRef
 }
 
 // Hydrate
-export function hydrate(code, element, options = {}) {
+export function hydrate(
+  code: () => JSX.Element,
+  element: MountableElement,
+  options: { renderId?: string, owner?: unknown } = {}
+): () => void {
   sharedConfig.completed = globalThis._$HY.completed;
   sharedConfig.events = globalThis._$HY.events;
   sharedConfig.load = globalThis._$HY.load;
@@ -220,18 +260,20 @@ export function hydrate(code, element, options = {}) {
     count: 0
   };
   gatherHydratable(element, options.renderId);
+  // @ts-ignore
   const dispose = render(code, element, [...element.childNodes], options);
   sharedConfig.context = null;
   return dispose;
 }
 
-export function getNextElement(template) {
+export function getNextElement(template?: HTMLTemplateElement): Element {
   let node, key;
   if (!sharedConfig.context || !(node = sharedConfig.registry.get((key = getHydrationKey())))) {
     if ("_DX_DEV_" && sharedConfig.context)
       console.warn("Unable to find DOM nodes for hydration key:", key);
     if ("_DX_DEV_" && !template)
       throw new Error("Unrecoverable Hydration Mismatch. No template for key: " + key);
+    // @ts-ignore
     return template.cloneNode(true);
   }
   if (sharedConfig.completed) sharedConfig.completed.add(node);
@@ -239,12 +281,13 @@ export function getNextElement(template) {
   return node;
 }
 
-export function getNextMatch(el, nodeName) {
+export function getNextMatch(el: Node, nodeName: string): Element | Node {
+  // @ts-ignore
   while (el && el.localName !== nodeName) el = el.nextSibling;
   return el;
 }
 
-export function getNextMarker(start) {
+export function getNextMarker(start: Node): [Node, Array<Node>] {
   let end = start,
     count = 0,
     current = [];
@@ -360,6 +403,7 @@ function eventHandler(e) {
       while(elem && elem.nodeType !== 8 && elem.nodeValue !== "pl-"+e) {
         let x = elem.nextSibling;
         elem.remove();
+        // @ts-ignore
         elem = x;
       }
       elem && elem.remove();
@@ -377,7 +421,7 @@ function eventHandler(e) {
   }
 }
 
-function insertExpression(parent, value, current, marker, unwrapArray) {
+function insertExpression(parent, value, current?, marker?, unwrapArray?) {
   if (sharedConfig.context && !current) current = [...parent.childNodes];
   while (typeof current === "function") current = current();
   if (value === current) return current;
@@ -448,7 +492,7 @@ function insertExpression(parent, value, current, marker, unwrapArray) {
   return current;
 }
 
-function normalizeIncomingArray(normalized, array, current, unwrap) {
+function normalizeIncomingArray(normalized, array, current, unwrap?: any) {
   let dynamic = false;
   for (let i = 0, len = array.length; i < len; i++) {
     let item = array[i],
@@ -489,7 +533,7 @@ function appendNodes(parent, array, marker = null) {
   for (let i = 0, len = array.length; i < len; i++) parent.insertBefore(array[i], marker);
 }
 
-function cleanChildren(parent, current, marker, replacement) {
+function cleanChildren(parent, current?, marker?, replacement?) {
   if (marker === undefined) return (parent.textContent = "");
   const node = replacement || document.createTextNode("");
   if (current.length) {
@@ -517,16 +561,16 @@ function gatherHydratable(element, root) {
   }
 }
 
-export function getHydrationKey() {
+export function getHydrationKey(): string {
   const hydrate = sharedConfig.context;
   return `${hydrate.id}${hydrate.count++}`;
 }
 
-export function NoHydration(props) {
+export function NoHydration(props: { children?: JSX.Element }): JSX.Element {
   return sharedConfig.context ? undefined : props.children
 }
 
-export function Hydration(props) {
+export function Hydration(props: { children?: JSX.Element }): JSX.Element {
   return props.children;
 }
 

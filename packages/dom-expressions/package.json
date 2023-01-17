@@ -23,7 +23,9 @@
     "csstype": "^3.0"
   },
   "devDependencies": {
+    "@types/node": "^18.11.18",
     "babel-plugin-tsx-expressions": "^0.35.13",
-    "csstype": "^3.1"
+    "csstype": "^3.1",
+    "solid-js": "^1.6.9"
   }
 }
