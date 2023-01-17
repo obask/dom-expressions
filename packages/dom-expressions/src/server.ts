@@ -1,12 +1,21 @@
 import { Aliases, BooleanAttributes, ChildProperties } from "./constants";
+// @ts-ignore
 import { sharedConfig } from "rxcore";
 import stringify from "./serializer";
+import {JSX} from "./jsx-runtime";
 export { stringify };
+// @ts-ignore
 export { createComponent } from "rxcore";
 
 const REPLACE_SCRIPT = `function $df(e,t,n,o,d){if(n=document.getElementById(e),o=document.getElementById("pl-"+e)){for(;o&&8!==o.nodeType&&o.nodeValue!=="pl-"+e;)d=o.nextSibling,o.remove(),o=d;o.replaceWith(n.content)}n.remove(),_$HY.set(e,t),_$HY.fe(e)}`;
 
-export function renderToString(code, options = {}) {
+export function renderToString<T>(
+  code: () => T,
+  options: {
+    nonce?: string;
+    renderId?: string;
+  } = {}
+): string {
   let scripts = "";
   sharedConfig.context = {
     id: options.renderId || "",
@@ -21,26 +30,44 @@ export function renderToString(code, options = {}) {
       scripts += `_$HY.set("${id}", ${stringify(p)});`;
     }
   };
-  let html = resolveSSRNode(escape(code()));
+  let html = resolveSSRNode(escape(code() as string));
   sharedConfig.context.noHydrate = true;
   html = injectAssets(sharedConfig.context.assets, html);
   if (scripts.length) html = injectScripts(html, scripts, options.nonce);
   return html;
 }
 
-export function renderToStringAsync(code, options = {}) {
+export function renderToStringAsync<T>(
+  code: () => T,
+  options: {
+    timeoutMs?: number;
+    nonce?: string;
+    renderId?: string;
+  } = {}
+): Promise<string> {
   const { timeoutMs = 30000 } = options;
   let timeoutHandle;
   const timeout = new Promise((_, reject) => {
     timeoutHandle = setTimeout(() => reject("renderToString timed out"), timeoutMs);
   });
-  return Promise.race([renderToStream(code, options), timeout]).then(html => {
+  return Promise.race([renderToStream(code, options), timeout]).then((html:string) => {
     clearTimeout(timeoutHandle);
     return html;
   });
 }
 
-export function renderToStream(code, options = {}) {
+export function renderToStream<T>(
+  code: () => T,
+  options: {
+    nonce?: string;
+    renderId?: string;
+    onCompleteShell?: (info: { write: (v: string) => void }) => void;
+    onCompleteAll?: (info: { write: (v: string) => void }) => void;
+  } = {}
+): {
+  pipe: (writable: { write: (v: string) => void }) => void;
+  pipeTo: (writable: WritableStream) => void;
+} {
   let { nonce, onCompleteShell, onCompleteAll, renderId } = options;
   const blockingResources = [];
   const registry = new Map();
@@ -158,7 +185,7 @@ export function renderToStream(code, options = {}) {
     }
   };
 
-  let html = resolveSSRNode(escape(code()));
+  let html = resolveSSRNode(escape(code() as string));
   function doShell() {
     sharedConfig.context = context;
     context.noHydrate = true;
@@ -181,14 +208,17 @@ export function renderToStream(code, options = {}) {
   }
 
   return {
+    // @ts-ignore
     then(fn) {
       function complete() {
         doShell();
         fn(tmp);
       }
       if (onCompleteAll) {
+        // @ts-ignore
         ogComplete = onCompleteAll;
         onCompleteAll = options => {
+          // @ts-ignore
           ogComplete(options);
           complete();
         };
@@ -231,13 +261,14 @@ export function renderToStream(code, options = {}) {
 }
 
 // components
-export function HydrationScript(props) {
+export function HydrationScript(props: { nonce?: string; eventNames?: string[] }): JSX.Element {
   const { nonce } = sharedConfig.context;
+  // @ts-ignore
   return ssr(generateHydrationScript({ nonce, ...props }));
 }
 
 // rendering
-export function ssr(t, ...nodes) {
+export function ssr(t: string[] | string, ...nodes: any[]): { t: string[] | string } {
   if (nodes.length) {
     let result = "";
 
@@ -253,7 +284,7 @@ export function ssr(t, ...nodes) {
   return { t };
 }
 
-export function ssrClassList(value) {
+export function ssrClassList(value: { [k: string]: boolean }): string {
   if (!value) return "";
   let classKeys = Object.keys(value),
     result = "";
@@ -267,7 +298,7 @@ export function ssrClassList(value) {
   return result;
 }
 
-export function ssrStyle(value) {
+export function ssrStyle(value: { [k: string]: string }): string {
   if (!value) return "";
   if (typeof value === "string") return value;
   let result = "";
@@ -283,7 +314,12 @@ export function ssrStyle(value) {
   return result;
 }
 
-export function ssrElement(tag, props, children, needsId) {
+export function ssrElement(
+  tag: string,
+  props: any,
+  children: any,
+  needsId: boolean
+): { t: string } {
   let result = `<${tag}${needsId ? ssrHydrationKey() : ""} `;
   if (props == null) props = {};
   else if (typeof props === "function") props = props();
@@ -320,19 +356,19 @@ export function ssrElement(tag, props, children, needsId) {
   return { t: result + `>${resolveSSRNode(children)}</${tag}>` };
 }
 
-export function ssrAttribute(key, value, isBoolean) {
+export function ssrAttribute(key: string, value: any, isBoolean: boolean): string {
   return isBoolean ? (value ? " " + key : "") : value != null ? ` ${key}="${value}"` : "";
 }
 
-export function ssrHydrationKey() {
+export function ssrHydrationKey(): string {
   const hk = getHydrationKey();
   return hk ? ` data-hk="${hk}"` : "";
 }
 
-export function escape(s, attr) {
+export function escape(s: string | (() => string), attr?: any): any {
   const t = typeof s;
-  if (t !== "string") {
-    if (!attr && t === "function") return escape(s(), attr);
+  if (typeof s !== "string") {
+    if (!attr && typeof s === "function") return escape(s(), attr);
     if (!attr && Array.isArray(s)) {
       let r = "";
       for (let i = 0; i < s.length; i++) r += resolveSSRNode(escape(s[i], attr));
@@ -383,7 +419,7 @@ export function escape(s, attr) {
   return left < s.length ? out + s.substring(left) : out;
 }
 
-export function resolveSSRNode(node) {
+export function resolveSSRNode(node: any): string {
   const t = typeof node;
   if (t === "string") return node;
   if (node == null || t === "boolean") return "";
@@ -397,7 +433,7 @@ export function resolveSSRNode(node) {
   return String(node);
 }
 
-export function mergeProps(...sources) {
+export function mergeProps(...sources: unknown[]): unknown {
   const target = {};
   for (let i = 0; i < sources.length; i++) {
     let source = sources[i];
@@ -421,23 +457,24 @@ export function mergeProps(...sources) {
   return target;
 }
 
-export function getHydrationKey() {
+export function getHydrationKey(): string {
   const hydrate = sharedConfig.context;
   return hydrate && !hydrate.noHydrate && `${hydrate.id}${hydrate.count++}`;
 }
 
-export function useAssets(fn) {
+export function useAssets(fn: () => JSX.Element): void {
   sharedConfig.context.assets.push(() => resolveSSRNode(fn()));
 }
 
-export function getAssets() {
+export function getAssets(): string {
   const assets = sharedConfig.context.assets;
   let out = "";
   for (let i = 0, len = assets.length; i < len; i++) out += assets[i]();
   return out;
 }
 
-export function generateHydrationScript({ eventNames = ["click", "input"], nonce } = {}) {
+export function generateHydrationScript({ nonce, eventNames = ["click", "input"] }:
+                                          { nonce?: string; eventNames?: string[] } = {}): string {
   return `<script${
     nonce ? ` nonce="${nonce}"` : ""
   }>(e=>{let t=e=>e&&e.hasAttribute&&(e.hasAttribute("data-hk")?e:t(e.host&&e.host instanceof Node?e.host:e.parentNode));["${eventNames.join(
@@ -445,7 +482,7 @@ export function generateHydrationScript({ eventNames = ["click", "input"], nonce
   )}"].forEach((o=>document.addEventListener(o,(o=>{let s=o.composedPath&&o.composedPath()[0]||o.target,a=t(s);a&&!e.completed.has(a)&&e.events.push([a,o])}))))})(window._$HY||(_$HY={events:[],completed:new WeakSet,r:{},fe(){},init(e,t){_$HY.r[e]=[new Promise((e=>t=e)),t]},set(e,t,o){(o=_$HY.r[e])&&o[1](t),_$HY.r[e]=[t]},unset(e){delete _$HY.r[e]},load:e=>_$HY.r[e]}));</script><!--xs-->`;
 }
 
-export function Hydration(props) {
+export function Hydration(props: { children?: JSX.Element }): JSX.Element {
   if (!sharedConfig.context.noHydrate) return props.children;
   const context = sharedConfig.context;
   sharedConfig.context = {
@@ -459,7 +496,7 @@ export function Hydration(props) {
   return res;
 }
 
-export function NoHydration(props) {
+export function NoHydration(props: { children?: JSX.Element }): JSX.Element {
   sharedConfig.context.noHydrate = true;
   return props.children;
 }
@@ -525,7 +562,7 @@ function replacePlaceholder(html, key, value) {
 }
 
 // consider deprecating
-export function Assets(props) {
+export function Assets(props: { children?: JSX.Element }): any {
   useAssets(() => props.children);
 }
 
@@ -533,7 +570,16 @@ export function Assets(props) {
 /**
  * @deprecated Replaced by renderToStream
  */
-export function pipeToNodeWritable(code, writable, options = {}) {
+export function pipeToNodeWritable<T>(
+  code: () => T,
+  writable: { write: (v: string) => void },
+  options: {
+    nonce?: string;
+    onReady?: (res: LegacyResults) => void;
+    onCompleteAll?: () => void;
+    onCompleteShell?: (info: { write: (v: string) => void }) => void;
+  } = {}
+): void {
   if (options.onReady) {
     options.onCompleteShell = ({ write }) => {
       options.onReady({
@@ -548,11 +594,25 @@ export function pipeToNodeWritable(code, writable, options = {}) {
   if (!options.onReady) stream.pipe(writable);
 }
 
+// deprecated
+export type LegacyResults = {
+  write: (text: string) => void;
+  startWriting: () => void;
+};
 /* istanbul ignore next */
 /**
  * @deprecated Replaced by renderToStream
  */
-export function pipeToWritable(code, writable, options = {}) {
+export function pipeToWritable<T>(
+  code: () => T,
+  writable: WritableStream,
+  options: {
+    nonce?: string;
+    onReady?: (res: LegacyResults) => void;
+    onCompleteAll?: () => void;
+    onCompleteShell?: (info: { write: (v: string) => void }) => void;
+  } = {}
+): void {
   if (options.onReady) {
     options.onCompleteShell = ({ write }) => {
       options.onReady({

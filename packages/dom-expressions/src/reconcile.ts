@@ -33,6 +33,7 @@ export default function reconcileArrays(parentNode: Node, a: Node[], b: Node[]):
     // remove
     } else if (bEnd === bStart) {
       while (aStart < aEnd) {
+        // @ts-ignore
         if (!map || !map.has(a[aStart])) a[aStart].remove();
         aStart++;
       }
@@ -69,6 +70,7 @@ export default function reconcileArrays(parentNode: Node, a: Node[], b: Node[]):
             while (bStart < index) parentNode.insertBefore(b[bStart++], node);
           } else parentNode.replaceChild(b[bStart++], a[aStart++]);
         } else aStart++;
+        // @ts-ignore
       } else a[aStart++].remove();
     }
   }

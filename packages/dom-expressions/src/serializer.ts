@@ -13,7 +13,7 @@ let ASSIGNMENTS = new Map();
 let INDEX_OR_REF = new WeakMap();
 let REF_COUNT = 0;
 BUFFER.pop();
-export default function stringify(root) {
+export default function stringify(root: any): string {
   if (writeProp(root, "")) {
     let result = BUFFER[0];
     for (let i = 1, len = BUFFER.length; i < len; i++) {
