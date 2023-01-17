@@ -1,4 +1,4 @@
-import { JSX } from '../src/jsx'
+import { JSX } from '../src/jsx-runtime'
 
 /**
  * Statically verify type definitions of `jsx-runtime`.
